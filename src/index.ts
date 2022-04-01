@@ -14,87 +14,7 @@ const eventQueue: Event[] = [];
 const trackerConfig: TrackerConfig = {
   authServerUrl: "",
   eventApiUrl: "",
-  trackers: [
-    {
-      triggers: [
-        {
-          name: "appState",
-          filters: [],
-          option: null
-        },
-        {
-          name: "route",
-          filters:[],
-          option: null
-        }
-      ],
-      variables: [
-        {
-          name: "appState",
-          type: "appState",
-          option: null
-        },
-        {
-          name: "deviceName",
-          type: "deviceName",
-          option: null
-        },
-        {
-          name: "deviceId",
-          type: "deviceId",
-          option: null
-        },
-        {
-          name: "ipAddress",
-          type: "ipAddress",
-          option: null
-        },
-        {
-          name: "javascript",
-          type: "javascript",
-          option: {
-            code: "(()=>{" +
-              "return 15 + 30;})()"
-          }
-        },
-        {
-          name: "route",
-          type: "route",
-          option: null
-        }
-      ],
-      event: {
-        name: "test",
-        actorMapping: "test",
-        variableMappings: [
-          {
-            name: "appState",
-            value: "`appState`"
-          },
-          {
-            name: "deviceName",
-            value: "`deviceName`"
-          },
-          {
-            name: "deviceId",
-            value: "`deviceId`"
-          },
-          {
-            name: "ipAddress",
-            value: "`ipAddress`"
-          },
-          {
-            name: "javascript",
-            value: "`javascript`"
-          },
-          {
-            name: "route",
-            value: "`route`"
-          }
-        ]
-      }
-    }
-  ]
+  trackers: []
 };
 
 let navigationRef: MutableRefObject<NavigationContainerRef<{}>>;
@@ -128,7 +48,7 @@ type NavigationCallback = EventArg<"state", false, { state: NavigationState; }>
 const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: TrackerVariableSchema[], eventSchema: EventSchema) => {
   switch (triggerSchema.name) {
     case "route":
-      navigationRef.current.addListener("state", (state: NavigationCallback) => {
+      navigationRef.current.addListener("state", (state: any) => {
         const trackerVariables: KeyValueMap = {};
         trackerVariableSchemas.forEach(trackerVariableSchema => {
           trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, { state });

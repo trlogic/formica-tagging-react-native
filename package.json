@@ -1,44 +1,36 @@
 {
-  "name": "AwesomeProject",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@trlogic/formica-tagging-react-native",
+  "version": "1.0.7",
+  "description": "formica-tagging",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
-    "start": "react-native start",
-    "test": "jest",
-    "lint": "eslint ."
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trlogic/formica-tagging-react-native.git"
+  },
+  "keywords": [],
+  "author": "trlogic",
+  "license": "ISC",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   },
   "dependencies": {
-    "@react-native-community/masked-view": "^0.1.11",
-    "@react-navigation/bottom-tabs": "^6.2.0",
     "@react-navigation/native": "^6.0.8",
-    "@react-navigation/native-stack": "^6.5.2",
     "axios": "^0.26.1",
-    "react": "17.0.2",
     "react-native": "0.68.0",
     "react-native-device-info": "^8.7.0",
-    "react-native-gesture-handler": "^2.3.2",
-    "react-native-reanimated": "^2.5.0",
-    "react-native-safe-area-context": "^4.2.4",
-    "react-native-screens": "^3.13.1",
-    "tsc": "^2.0.4"
-  },
-  "devDependencies": {
-    "@babel/core": "7.17.8",
-    "@babel/runtime": "7.17.8",
-    "@react-native-community/eslint-config": "2.0.0",
-    "@types/react": "^17.0.43",
-    "@types/react-native": "^0.67.3",
-    "babel-jest": "26.6.3",
-    "eslint": "7.32.0",
-    "jest": "26.6.3",
-    "metro-react-native-babel-preset": "0.67.0",
-    "react-native-typescript-transformer": "^1.2.13",
-    "react-test-renderer": "17.0.2",
     "typescript": "^4.6.3"
   },
-  "jest": {
-    "preset": "react-native"
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/react": "^17.0.43",
+    "@types/react-native": "^0.67.3"
   }
 }
