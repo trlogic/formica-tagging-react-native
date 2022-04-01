@@ -1,14 +1,13 @@
 //  ******************** TRACKER  ********************
-import axios, { AxiosInstance } from "axios";
-import { MutableRefObject } from "react";
-import { EventArg, NavigationContainerRef } from "@react-navigation/native";
-import { NavigationState } from "@react-navigation/native";
-import { AppState, AppStateStatus } from "react-native";
+import axios, {AxiosInstance} from "axios";
+import {MutableRefObject} from "react";
+import {EventArg, NavigationContainerRef, NavigationState} from "@react-navigation/native";
+import {AppState, AppStateStatus} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
 declare type KeyValueMap = { [key: string]: string };
 
-const _axios: AxiosInstance = axios.create({ headers: { "Content-Type": "application/json" } });
+const _axios: AxiosInstance = axios.create({headers: {"Content-Type": "application/json"}});
 const eventQueue: Event[] = [];
 
 const trackerConfig: TrackerConfig = {
@@ -19,11 +18,24 @@ const trackerConfig: TrackerConfig = {
 
 let navigationRef: MutableRefObject<NavigationContainerRef<{}>>;
 
-export const run = (_navigationRef: MutableRefObject<NavigationContainerRef<{}>>): void => {
+export const run = async (serviceUrl: string, _navigationRef: MutableRefObject<NavigationContainerRef<{}>>): Promise<void> => {
   navigationRef = _navigationRef;
+
+  await getTrackers(serviceUrl);
   initClientWorker();
   trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
 };
+
+const getTrackers = async (serviceUrl: string) => {
+  try {
+    const config = await _axios.get(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`)
+    trackerConfig.trackers = config.data.trackers;
+    trackerConfig.eventApiUrl = config.data.eventApiUrl;
+    trackerConfig.authServerUrl = config.data.authServerUrl;
+  } catch (e) {
+    console.error("Formica tracker config couldn't get", e);
+  }
+}
 
 const initClientWorker = () => {
   setInterval(args => {
@@ -35,8 +47,7 @@ const initClientWorker = () => {
     }
 
     if (events.length > 0) {
-      console.log(events);
-      //_axios.post("http://localhost:8081/event-listener/event/send-events/trlogic", JSON.stringify({events}));
+      _axios.post(trackerConfig.eventApiUrl, {events});
     }
   }, 3000);
 };
@@ -51,7 +62,7 @@ const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: Trac
       navigationRef.current.addListener("state", (state: any) => {
         const trackerVariables: KeyValueMap = {};
         trackerVariableSchemas.forEach(trackerVariableSchema => {
-          trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, { state });
+          trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {state});
         });
 
         const validated: boolean = validate(triggerSchema, trackerVariables);
@@ -65,7 +76,7 @@ const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: Trac
       AppState.addEventListener("change", (state: AppStateStatus) => {
         const trackerVariables: KeyValueMap = {};
         trackerVariableSchemas.forEach(trackerVariableSchema => {
-          trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, { appState: state });
+          trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {appState: state});
         });
 
         const validated: boolean = validate(triggerSchema, trackerVariables);
@@ -236,7 +247,7 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
     case "javascript":
       return resolveJavascriptVariable(trackerVariableSchema);
     case "appState":
-      return event.appState || "";
+      return AppState.currentState || "";
     case "deviceId":
       return DeviceInfo.getDeviceId();
     case "deviceName":
@@ -251,13 +262,7 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
 };
 
 const resolveRouteVariable = (trackerVariableSchema: TrackerVariableSchema, event: { state?: NavigationCallback, appState?: AppStateStatus }): string => {
-  let currentRoute = "";
-  const history = event.state?.data?.state?.history;
-  if (history != undefined && Array.isArray(history)) {
-    const currentRouteKey: string = history[history.length - 1].key;
-    currentRoute = currentRouteKey.split("-")[0];
-  }
-  return currentRoute;
+  return navigationRef.current.getCurrentRoute()?.name || "";
 };
 
 const resolveJavascriptVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
@@ -276,7 +281,7 @@ const buildEvent = (eventSchema: EventSchema, trackerVariables: KeyValueMap): Ev
   const actor: string = resolveMapping(eventSchema.actorMapping, trackerVariables);
   const variables: KeyValueMap = {};
   eventSchema.variableMappings.forEach(variableMapping => variables[variableMapping.name] = resolveMapping(variableMapping.value, trackerVariables));
-  return { name, actor, variables };
+  return {name, actor, variables};
 };
 
 const resolveMapping = (mapping: string, trackerVariables: KeyValueMap): string => {
