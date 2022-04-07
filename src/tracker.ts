@@ -1,11 +1,11 @@
 //  ******************** TRACKER  ********************
 import axios, {AxiosInstance} from "axios";
-import {MutableRefObject} from "react";
+import {Key, MutableRefObject} from "react";
 import {EventArg, NavigationContainerRef, NavigationState} from "@react-navigation/native";
-import {AppState, AppStateStatus} from "react-native";
+import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
-declare type KeyValueMap = { [key: string]: string };
+declare type KeyValueMap<T = string> = { [key: string]: T };
 
 const _axios: AxiosInstance = axios.create({headers: {"Content-Type": "application/json"}});
 const eventQueue: Event[] = [];
@@ -23,6 +23,7 @@ export const run = async (serviceUrl: string, _navigationRef: MutableRefObject<N
 
   await getTrackers(serviceUrl);
   initClientWorker();
+  initTimer();
   trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
 };
 
@@ -36,6 +37,12 @@ const getTrackers = async (serviceUrl: string) => {
     console.error("Formica tracker config couldn't get", e);
   }
 }
+
+const globalVariables: KeyValueMap<any> = {
+  screenViewDuration: 0
+}
+
+let timerInstance: any = undefined;
 
 const initClientWorker = () => {
   setInterval(args => {
@@ -52,19 +59,32 @@ const initClientWorker = () => {
   }, 3000);
 };
 
+const initTimer = () => {
+  timerInstance = setInterval(timerHandler, 100);
+}
+
+const resetTimer = () => {
+  globalVariables.viewDuration = 0;
+  initTimer();
+}
+
+const timerHandler = () => {
+  globalVariables.viewDuration += 100;
+}
+
 //  ******************** EVENT HANDLERS  ********************
 
 type NavigationCallback = EventArg<"state", false, { state: NavigationState; }>
 
 const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: TrackerVariableSchema[], eventSchema: EventSchema) => {
   switch (triggerSchema.name) {
-    case "route":
+    case "screenView":
       navigationRef.current.addListener("state", (state: any) => {
         const trackerVariables: KeyValueMap = {};
         trackerVariableSchemas.forEach(trackerVariableSchema => {
           trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {state});
         });
-
+        resetTimer();
         const validated: boolean = validate(triggerSchema, trackerVariables);
         if (validated) {
           const event: Event = buildEvent(eventSchema, trackerVariables);
@@ -78,13 +98,29 @@ const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: Trac
         trackerVariableSchemas.forEach(trackerVariableSchema => {
           trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {appState: state});
         });
-
+        resetTimer();
         const validated: boolean = validate(triggerSchema, trackerVariables);
         if (validated) {
           const event: Event = buildEvent(eventSchema, trackerVariables);
           sendEvent(event);
         }
       });
+      break;
+    case "timer":
+      break;
+    default:
+      DeviceEventEmitter.addListener(triggerSchema.name, (args: KeyValueMap<any>) => {
+        const trackerVariables: KeyValueMap = {};
+        trackerVariableSchemas.forEach(trackerVariableSchema => {
+          trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {custom: args});
+        });
+
+        const validated: boolean = validate(triggerSchema, trackerVariables);
+        if (validated) {
+          const event: Event = buildEvent(eventSchema, trackerVariables);
+          sendEvent(event);
+        }
+      })
   }
 };
 
@@ -160,18 +196,26 @@ interface TriggerSchema {
 }
 
 //  ******************** TRACKER VARIABLE ********************
-declare type TrackerVariableType = "deviceId" | "deviceName" | "ipAddress" | "route" | "appState" | "javascript";
-declare type URLSelection = "full" | "host" | "port" | "path" | "query" | "fragment" | "protocol";
-declare type HistorySelection = "newUrl" | "oldUrl" | "newState" | "oldState" | "changeSource";
+declare type TrackerVariableType =
+  "deviceId"
+  | "deviceName"
+  | "ipAddress"
+  | "route"
+  | "appState"
+  | "javascript"
+  | "viewDuration"
+  | "customEventProperty";
 
-declare type JavascriptOption = { code: string; }
+declare type JavascriptOption = { code: string; };
+
+declare type CustomEventOption = { property: string }
 
 interface TrackerVariableSchema {
   type: TrackerVariableType;
 
   name: string;
 
-  option: JavascriptOption | null;
+  option: JavascriptOption | CustomEventOption | null;
 }
 
 // ******************** TRACKER UTILS ********************
@@ -242,7 +286,7 @@ const calculateFilter = (filter: Filter, variables: KeyValueMap): boolean => {
   }
 };
 
-const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, event: { state?: NavigationCallback, appState?: AppStateStatus }): string => {
+const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, event: { state?: NavigationCallback, appState?: AppStateStatus, custom?: KeyValueMap<any> }): string => {
   switch (trackerVariableSchema.type) {
     case "javascript":
       return resolveJavascriptVariable(trackerVariableSchema);
@@ -255,13 +299,21 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
     case "ipAddress":
       return DeviceInfo.getIpAddressSync();
     case "route":
-      return resolveRouteVariable(trackerVariableSchema, event);
+      return resolveRouteVariable(trackerVariableSchema);
+    case "viewDuration":
+      return globalVariables.viewDuration || 0;
+    case "customEventProperty":
+      if (event.custom && trackerVariableSchema.option && (trackerVariableSchema.option as CustomEventOption).property
+        && event.custom.hasOwnProperty((trackerVariableSchema.option as CustomEventOption).property)) {
+        return event.custom[(trackerVariableSchema.option as CustomEventOption).property];
+      }
+      return "";
     default :
       return "";
   }
 };
 
-const resolveRouteVariable = (trackerVariableSchema: TrackerVariableSchema, event: { state?: NavigationCallback, appState?: AppStateStatus }): string => {
+const resolveRouteVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
   return navigationRef.current.getCurrentRoute()?.name || "";
 };
 
