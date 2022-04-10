@@ -1,9 +1,11 @@
 {
   "name": "@trlogic/formica-tagging-react-native",
-  "version": "1.1.29",
+  "version": "1.1.38",
+  "private": false,
   "description": "Formica Tagging React Native",
-  "main": "index.js",
+
   "scripts": {
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -15,16 +17,10 @@
     "type": "git",
     "url": "git+https://github.com/trlogic/formica-tagging-react-native.git"
   },
-  "author": "Alperen Gözüm",
+  "main": "dist/tracker.js",
+  "types": "dist/tracker.d.ts",
+  "author": "trlogic",
   "license": "ISC",
-  "@react-native-community/bob": {
-    "source": "src",
-    "output": "dist",
-    "targets": [
-      "module",
-      "typescript"
-    ]
-  },
   "dependencies": {
     "@react-navigation/native": "^6.0.8",
     "axios": "^0.26.1",
@@ -33,7 +29,6 @@
     "typescript": "^4.6.3"
   },
   "devDependencies": {
-    "@react-native-community/bob": "^0.17.1",
     "@types/axios": "^0.14.0",
     "@types/react": "^17.0.43",
     "@types/react-native": "^0.67.3"
