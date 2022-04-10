@@ -1,0 +1,7 @@
+ios/
+node_modules/
+tsconfig.json
+package-lock.json
+.gitignore
+.babelrc
+.idea/

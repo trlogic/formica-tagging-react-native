@@ -1,17 +1,10 @@
 {
   "name": "@trlogic/formica-tagging-react-native",
-  "version": "1.1.23",
+  "version": "1.1.29",
   "description": "Formica Tagging React Native",
-  "main": "dist/module/index.js",
-  "module": "dist/module/index.js",
-  "react-native": "src/index.ts",
-  "types": "dist/typescript/src/index.d.ts",
-  "files": [
-    "dist/"
-  ],
+  "main": "index.js",
   "scripts": {
-    "lint": "tsc --noEmit && eslint --ext .js,.jsx,.ts,.tsx ./",
-    "prepare": "bob build"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "react-native",
