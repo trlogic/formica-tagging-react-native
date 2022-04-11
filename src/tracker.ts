@@ -7,7 +7,11 @@ import DeviceInfo from "react-native-device-info";
 
 declare type KeyValueMap<T = string> = { [key: string]: T };
 declare type TrackerPayload = Event;
-
+declare type TrackerResponse = {
+  authServerUrl: string;
+  eventApiUrl: string,
+  trackers: Array<TrackerSchema>
+}
 //  ******************** INSTANCE  ********************
 
 const _axios: AxiosInstance = axios.create({headers: {"Content-Type": "application/json"}});
@@ -45,8 +49,8 @@ export namespace FormicaTracker {
 
 const getTrackers = async (serviceUrl: string) => {
   try {
-    const config = await _axios.get(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`)
-    trackerConfig.trackers = config.data.trackers;
+    const config = await _axios.get<TrackerResponse>(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`)
+    trackerConfig.trackers = config.data.trackers.filter(tracker => tracker.platform == "ReactNative");
     trackerConfig.eventApiUrl = config.data.eventApiUrl;
     trackerConfig.authServerUrl = config.data.authServerUrl;
   } catch (e) {
@@ -176,6 +180,8 @@ interface TrackerSchema {
   variables: TrackerVariableSchema[];
 
   event: EventSchema;
+
+  platform: "Web" | "ReactNative"
 }
 
 //  ******************** TRIGGER ********************
