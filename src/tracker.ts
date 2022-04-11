@@ -62,9 +62,9 @@ const initClientWorker = () => {
       const event: TrackerPayload = eventQueue.pop()!;
       events.push(event);
     }
-
+    const url = `${trackerConfig.eventApiUrl}/event-listener/event/send-event/moneybo/async`
     if (events.length > 0) {
-      _axios.post(trackerConfig.eventApiUrl, {events});
+      _axios.post(url, {events});
     }
   }, 3000);
 };
