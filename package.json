@@ -1,24 +1,23 @@
 {
   "name": "@trlogic/formica-tagging-react-native",
-  "version": "1.1.38",
+  "version": "1.2.0",
   "private": false,
   "description": "Formica Tagging React Native",
-
   "scripts": {
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "npm run build"
   },
-  "keywords": [
-    "react-native",
-    "ios",
-    "android"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/trlogic/formica-tagging-react-native.git"
   },
   "main": "dist/tracker.js",
   "types": "dist/tracker.d.ts",
+  "keywords": [
+    "react-native",
+    "ios",
+    "android"
+  ],
   "author": "trlogic",
   "license": "ISC",
   "dependencies": {

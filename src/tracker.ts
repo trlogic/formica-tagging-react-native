@@ -1,11 +1,14 @@
 //  ******************** TRACKER  ********************
 import axios, {AxiosInstance} from "axios";
-import {Key, MutableRefObject} from "react";
+import {MutableRefObject} from "react";
 import {EventArg, NavigationContainerRef, NavigationState} from "@react-navigation/native";
 import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
 declare type KeyValueMap<T = string> = { [key: string]: T };
+declare type TrackerPayload = Event;
+
+//  ******************** INSTANCE  ********************
 
 const _axios: AxiosInstance = axios.create({headers: {"Content-Type": "application/json"}});
 const eventQueue: Event[] = [];
@@ -16,16 +19,29 @@ const trackerConfig: TrackerConfig = {
   trackers: []
 };
 
-let navigationRef: MutableRefObject<NavigationContainerRef<{}>>;
+let reactNavigationRef: MutableRefObject<NavigationContainerRef<{}>>;
 
-export const run = async (serviceUrl: string, _navigationRef: MutableRefObject<NavigationContainerRef<{}>>): Promise<void> => {
-  navigationRef = _navigationRef;
+let timerInstance: any = undefined;
 
-  await getTrackers(serviceUrl);
-  initClientWorker();
-  initTimer();
-  trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
-};
+const globalVariables: KeyValueMap<any> = {
+  screenViewDuration: 0
+}
+
+//  ******************** MAIN  ********************
+export namespace FormicaTracker {
+  export const run = async (serviceUrl: string, _navigationRef: MutableRefObject<NavigationContainerRef<{}>>): Promise<void> => {
+    reactNavigationRef = _navigationRef;
+
+    await getTrackers(serviceUrl);
+    initClientWorker();
+    initTimer();
+    trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
+  };
+
+  export const track = (payload: TrackerPayload) => {
+    eventQueue.push(payload);
+  }
+}
 
 const getTrackers = async (serviceUrl: string) => {
   try {
@@ -38,18 +54,12 @@ const getTrackers = async (serviceUrl: string) => {
   }
 }
 
-const globalVariables: KeyValueMap<any> = {
-  screenViewDuration: 0
-}
-
-let timerInstance: any = undefined;
-
 const initClientWorker = () => {
   setInterval(args => {
 
-    const events: Event[] = [];
+    const events: TrackerPayload[] = [];
     while (eventQueue.length > 0) {
-      const event: Event = eventQueue.pop()!;
+      const event: TrackerPayload = eventQueue.pop()!;
       events.push(event);
     }
 
@@ -59,13 +69,14 @@ const initClientWorker = () => {
   }, 3000);
 };
 
+//  ******************** TIMER  ********************
+
 const initTimer = () => {
   timerInstance = setInterval(timerHandler, 100);
 }
 
 const resetTimer = () => {
   globalVariables.viewDuration = 0;
-  initTimer();
 }
 
 const timerHandler = () => {
@@ -79,7 +90,7 @@ type NavigationCallback = EventArg<"state", false, { state: NavigationState; }>
 const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: TrackerVariableSchema[], eventSchema: EventSchema) => {
   switch (triggerSchema.name) {
     case "screenView":
-      navigationRef.current.addListener("state", (state: any) => {
+      reactNavigationRef.current.addListener("state", (state: any) => {
         const trackerVariables: KeyValueMap = {};
         trackerVariableSchemas.forEach(trackerVariableSchema => {
           trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {state});
@@ -168,6 +179,18 @@ interface TrackerSchema {
 }
 
 //  ******************** TRIGGER ********************
+
+interface TriggerSchema {
+  name: string;
+
+  filters: Filter[];
+
+  option: ClickOption | ScrollOptions | null,
+}
+
+declare type ClickOption = { justLinks: boolean }
+declare type ScrollOptions = { horizontal: boolean; vertical: boolean; }
+
 declare type Operator =
   "isEquals" | "isEqualsIgnoreCase" | "notEquals" | "notEqualsIgnoreCase" |
   "isContains" | "isContainsIgnoreCase" | "notContains" | "notContainsIgnoreCase" |
@@ -184,31 +207,7 @@ interface Filter {
   right: string;
 }
 
-declare type ClickOption = { justLinks: boolean }
-declare type ScrollOptions = { horizontal: boolean; vertical: boolean; }
-
-interface TriggerSchema {
-  name: string;
-
-  filters: Filter[];
-
-  option: ClickOption | ScrollOptions | null,
-}
-
 //  ******************** TRACKER VARIABLE ********************
-declare type TrackerVariableType =
-  "deviceId"
-  | "deviceName"
-  | "ipAddress"
-  | "route"
-  | "appState"
-  | "javascript"
-  | "viewDuration"
-  | "customEventProperty";
-
-declare type JavascriptOption = { code: string; };
-
-declare type CustomEventOption = { property: string }
 
 interface TrackerVariableSchema {
   type: TrackerVariableType;
@@ -217,6 +216,20 @@ interface TrackerVariableSchema {
 
   option: JavascriptOption | CustomEventOption | null;
 }
+
+declare type JavascriptOption = { code: string; };
+
+declare type CustomEventOption = { property: string }
+
+declare type TrackerVariableType =
+  "deviceId"
+  | "deviceName"
+  | "ipAddress"
+  | "reactNavigationRoute"
+  | "appState"
+  | "javascript"
+  | "viewDuration"
+  | "customEventProperty";
 
 // ******************** TRACKER UTILS ********************
 
@@ -298,8 +311,8 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
       return DeviceInfo.getDeviceNameSync();
     case "ipAddress":
       return DeviceInfo.getIpAddressSync();
-    case "route":
-      return resolveRouteVariable(trackerVariableSchema);
+    case "reactNavigationRoute":
+      return resolveReactNavigationVariable(trackerVariableSchema);
     case "viewDuration":
       return globalVariables.viewDuration || 0;
     case "customEventProperty":
@@ -313,8 +326,8 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
   }
 };
 
-const resolveRouteVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
-  return navigationRef.current.getCurrentRoute()?.name || "";
+const resolveReactNavigationVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
+  return reactNavigationRef.current.getCurrentRoute()?.name || "";
 };
 
 const resolveJavascriptVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
