@@ -27,19 +27,36 @@ let reactNavigationRef: MutableRefObject<NavigationContainerRef<{}>>;
 
 let timerInstance: any = undefined;
 
+let tenant: string;
+let serviceUrl: string;
+
 const globalVariables: KeyValueMap<any> = {
   screenViewDuration: 0
 }
 
 //  ******************** MAIN  ********************
 export namespace FormicaTracker {
-  export const run = async (serviceUrl: string, _navigationRef: MutableRefObject<NavigationContainerRef<{}>>): Promise<void> => {
-    reactNavigationRef = _navigationRef;
-
-    await getTrackers(serviceUrl);
-    initClientWorker();
-    initTimer();
-    trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
+  export const run = async (_serviceUrl: string, _tenant: string, _navigationRef: MutableRefObject<NavigationContainerRef<{}>>): Promise<void> => {
+    try {
+      reactNavigationRef = _navigationRef;
+      if (_serviceUrl == null || _serviceUrl.trim().length == 0) {
+        console.error("Service url must be passed");
+        return;
+      }
+      if (_tenant == null || _tenant.trim().length == 0) {
+        console.error("Tenant name must be passed");
+        return;
+      }
+      serviceUrl = _serviceUrl;
+      tenant = _tenant;
+      await getTrackers();
+      initClientWorker();
+      initTimer();
+      trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
+      return Promise.resolve();
+    } catch (e) {
+      return Promise.reject()
+    }
   };
 
   export const track = (payload: TrackerPayload) => {
@@ -47,11 +64,11 @@ export namespace FormicaTracker {
   }
 }
 
-const getTrackers = async (serviceUrl: string) => {
+const getTrackers = async () => {
   try {
     const config = await _axios.get<TrackerResponse>(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`)
     trackerConfig.trackers = config.data.trackers.filter(tracker => tracker.platform == "ReactNative");
-    trackerConfig.eventApiUrl = config.data.eventApiUrl;
+    trackerConfig.eventApiUrl = `${config.data.eventApiUrl}/event-listener/event/send-events/${tenant}`;
     trackerConfig.authServerUrl = config.data.authServerUrl;
   } catch (e) {
     console.error("Formica tracker config couldn't get", e);
@@ -60,15 +77,13 @@ const getTrackers = async (serviceUrl: string) => {
 
 const initClientWorker = () => {
   setInterval(args => {
-
     const events: TrackerPayload[] = [];
     while (eventQueue.length > 0) {
       const event: TrackerPayload = eventQueue.pop()!;
       events.push(event);
     }
-    const url = `${trackerConfig.eventApiUrl}/event-listener/event/send-event/moneybo/async`
     if (events.length > 0) {
-      _axios.post(url, {events});
+      _axios.post(trackerConfig.eventApiUrl, {events});
     }
   }, 3000);
 };
