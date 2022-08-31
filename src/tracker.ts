@@ -1,7 +1,5 @@
 //  ******************** TRACKER  ********************
 import axios, {AxiosInstance} from "axios";
-import {MutableRefObject} from "react";
-import {EventArg, NavigationContainerRef, NavigationState} from "@react-navigation/native";
 import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
@@ -23,8 +21,6 @@ const trackerConfig: TrackerConfig = {
   trackers: []
 };
 
-let reactNavigationRef: MutableRefObject<NavigationContainerRef<{}>>;
-
 let timerInstance: any = undefined;
 
 let tenant: string;
@@ -36,9 +32,8 @@ const globalVariables: KeyValueMap<any> = {
 
 //  ******************** MAIN  ********************
 export namespace FormicaTracker {
-  export const run = async (_serviceUrl: string, _tenant: string, _navigationRef: MutableRefObject<NavigationContainerRef<{}>>): Promise<void> => {
+  export const run = async (_serviceUrl: string, _tenant: string): Promise<void> => {
     try {
-      reactNavigationRef = _navigationRef;
       if (_serviceUrl == null || _serviceUrl.trim().length == 0) {
         console.error("Service url must be passed");
         return;
@@ -76,7 +71,7 @@ const getTrackers = async () => {
 }
 
 const initClientWorker = () => {
-  setInterval(args => {
+  setInterval(() => {
     const events: TrackerPayload[] = [];
     while (eventQueue.length > 0) {
       const event: TrackerPayload = eventQueue.pop()!;
@@ -104,24 +99,9 @@ const timerHandler = () => {
 
 //  ******************** EVENT HANDLERS  ********************
 
-type NavigationCallback = EventArg<"state", false, { state: NavigationState; }>
 
 const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: TrackerVariableSchema[], eventSchema: EventSchema) => {
   switch (triggerSchema.name) {
-    case "screenView":
-      reactNavigationRef.current.addListener("state", (state: any) => {
-        const trackerVariables: KeyValueMap = {};
-        trackerVariableSchemas.forEach(trackerVariableSchema => {
-          trackerVariables[trackerVariableSchema.name] = resolveTrackerVariable(trackerVariableSchema, {state});
-        });
-        resetTimer();
-        const validated: boolean = validate(triggerSchema, trackerVariables);
-        if (validated) {
-          const event: Event = buildEvent(eventSchema, trackerVariables);
-          sendEvent(event);
-        }
-      });
-      break;
     case "appState":
       AppState.addEventListener("change", (state: AppStateStatus) => {
         const trackerVariables: KeyValueMap = {};
@@ -320,7 +300,7 @@ const calculateFilter = (filter: Filter, variables: KeyValueMap): boolean => {
   }
 };
 
-const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, event: { state?: NavigationCallback, appState?: AppStateStatus, custom?: KeyValueMap<any> }): string => {
+const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, event: { appState?: AppStateStatus, custom?: KeyValueMap<any> }): string => {
   switch (trackerVariableSchema.type) {
     case "javascript":
       return resolveJavascriptVariable(trackerVariableSchema);
@@ -332,8 +312,6 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
       return DeviceInfo.getDeviceNameSync();
     case "ipAddress":
       return DeviceInfo.getIpAddressSync();
-    case "reactNavigationRoute":
-      return resolveReactNavigationVariable(trackerVariableSchema);
     case "viewDuration":
       return globalVariables.viewDuration || 0;
     case "customEventProperty":
@@ -345,10 +323,6 @@ const resolveTrackerVariable = (trackerVariableSchema: TrackerVariableSchema, ev
     default :
       return "";
   }
-};
-
-const resolveReactNavigationVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
-  return reactNavigationRef.current.getCurrentRoute()?.name || "";
 };
 
 const resolveJavascriptVariable = (trackerVariableSchema: TrackerVariableSchema): string => {
