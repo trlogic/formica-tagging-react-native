@@ -1,6 +1,7 @@
 //  ******************** TRACKER  ********************
 import axios, {AxiosInstance} from "axios";
 import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import DeviceInfo from "react-native-device-info";
 
 declare type KeyValueMap<T = string> = { [key: string]: T };
@@ -70,8 +71,17 @@ const getTrackers = async () => {
   }
 }
 
+let isConnected: boolean = true;
+
+const networkListener = NetInfo.addEventListener(state => {
+  isConnected = state.isConnected;
+});
+
 const initClientWorker = () => {
   setInterval(() => {
+
+    if (!isConnected) return;
+
     const events: TrackerPayload[] = [];
     while (eventQueue.length > 0) {
       const event: TrackerPayload = eventQueue.pop()!;
@@ -98,7 +108,6 @@ const timerHandler = () => {
 }
 
 //  ******************** EVENT HANDLERS  ********************
-
 
 const initListener = (triggerSchema: TriggerSchema, trackerVariableSchemas: TrackerVariableSchema[], eventSchema: EventSchema) => {
   switch (triggerSchema.name) {
