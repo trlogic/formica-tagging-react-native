@@ -1,13 +1,14 @@
 {
   "name": "formica-tagging-react-native",
-  "version": "1.3.2",
+  "version": "1.3.4",
   "private": false,
   "description": "Formica Tagging React Native",
   "exports": {
     ".": {
       "require": "./dist/index.umd.min.js",
       "import": "./dist/index.esm.min.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build:types": "tsc -d --emitDeclarationOnly",
@@ -33,10 +34,10 @@
   "license": "ISC",
   "dependencies": {
     "@react-native-community/netinfo": "^9.3.6",
+    "react-native-device-info": "^8.7.0",
     "@rollup/plugin-typescript": "^8.3.2",
     "axios": "^0.26.1",
     "react-native": "0.61.5",
-    "react-native-device-info": "^8.7.0",
     "rollup": "^2.75.3",
     "terser": "^5.14.0",
     "tslib": "^2.4.0",

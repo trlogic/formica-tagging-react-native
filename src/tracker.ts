@@ -1,6 +1,6 @@
 //  ******************** TRACKER  ********************
 import axios, {AxiosInstance} from "axios";
-import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
+import {AppState, AppStateStatus, DeviceEventEmitter, Platform} from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import DeviceInfo from "react-native-device-info";
 
@@ -48,6 +48,7 @@ export namespace FormicaTracker {
       await getTrackers();
       initClientWorker();
       initTimer();
+      initNetworkListener();
       trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
       return Promise.resolve();
     } catch (e) {
@@ -73,12 +74,23 @@ const getTrackers = async () => {
 
 let isConnected: boolean = true;
 
-const networkListener = NetInfo.addEventListener(state => {
-  isConnected = state.isConnected;
-});
+let networkListener;
+
+const initNetworkListener = () => {
+  if (Platform.OS == "ios") {
+    networkListener = NetInfo.addEventListener(state => {
+      isConnected = state.isConnected;
+    });
+  }
+}
 
 const initClientWorker = () => {
-  setInterval(() => {
+  const platform = Platform.OS;
+  setInterval(async () => {
+
+    if(platform == "android"){
+      isConnected = (await NetInfo.fetch()).isConnected;
+    }
 
     if (!isConnected) return;
 
