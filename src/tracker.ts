@@ -1,7 +1,6 @@
 //  ******************** TRACKER  ********************
 import axios, {AxiosInstance} from "axios";
-import {AppState, AppStateStatus, DeviceEventEmitter, Platform} from "react-native";
-import NetInfo from "@react-native-community/netinfo";
+import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
 declare type KeyValueMap<T = string> = { [key: string]: T };
@@ -48,7 +47,7 @@ export namespace FormicaTracker {
       await getTrackers();
       initClientWorker();
       initTimer();
-      initNetworkListener();
+      await checkNetworkConnection();
       trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
       return Promise.resolve();
     } catch (e) {
@@ -74,24 +73,25 @@ const getTrackers = async () => {
 
 let isConnected: boolean = true;
 
-let networkListener;
-
-const initNetworkListener = () => {
-  if (Platform.OS == "ios") {
-    networkListener = NetInfo.addEventListener(state => {
-      isConnected = state.isConnected;
+const checkNetworkConnection = async () => {
+  if (trackerConfig.authServerUrl == undefined) return;
+  try {
+    await _axios.get(trackerConfig.authServerUrl, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
+    isConnected = true;
+  } catch (e) {
+    isConnected = false;
   }
 }
 
 const initClientWorker = () => {
-  const platform = Platform.OS;
   setInterval(async () => {
-
-    if(platform == "android"){
-      isConnected = (await NetInfo.fetch()).isConnected;
-    }
-
+    await checkNetworkConnection();
     if (!isConnected) return;
 
     const events: TrackerPayload[] = [];
