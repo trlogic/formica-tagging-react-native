@@ -96,7 +96,7 @@ const initClientWorker = () => {
 
     const events: TrackerPayload[] = [];
     while (eventQueue.length > 0) {
-      const event: TrackerPayload = eventQueue.pop()!;
+      const event: TrackerPayload = eventQueue.shift()!;
       events.push(event);
     }
     if (events.length > 0) {
