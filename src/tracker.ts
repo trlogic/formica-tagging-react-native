@@ -21,12 +21,11 @@ const trackerConfig: TrackerConfig = {
   trackers: []
 };
 
-const authServerUrl: string = "https://formica-keycloak.moneybo.com.tr";
-
 let timerInstance: any = undefined;
 
 let tenant: string;
 let serviceUrl: string;
+let authServiceUrl: string;
 let username: string;
 let password: string;
 let client: string;
@@ -38,9 +37,9 @@ const globalVariables: KeyValueMap<any> = {
 
 //  ******************** MAIN  ********************
 export namespace FormicaTracker {
-  export const run = async (_serviceUrl: string, _tenant: string, _username: string, _password: string, _client: string): Promise<void> => {
+  export const run = async (_serviceUrl: string, _tenant: string, _username: string, _password: string, _client: string, _authServiceUrl: string): Promise<void> => {
     try {
-      if (_serviceUrl == null || _serviceUrl.trim().length == 0) {
+      if (_serviceUrl == null || _serviceUrl.trim().length == 0 || _authServiceUrl == undefined || _authServiceUrl.trim().length == 0) {
         console.error("Service url must be passed");
         return;
       }
@@ -52,6 +51,7 @@ export namespace FormicaTracker {
         console.error("Tenant name must be passed");
         return;
       }
+      authServiceUrl = _authServiceUrl;
       serviceUrl = _serviceUrl;
       tenant = _tenant;
       username = _username;
@@ -86,7 +86,7 @@ const initAuthenticateWorkers = async () => {
     const config: AxiosRequestConfig = {
       headers: {'content-type': 'application/x-www-form-urlencoded'},
     };
-    const response = await _axios.post(`${authServerUrl}/auth/realms/${tenant}/protocol/openid-connect/token`, request.toString(), config)
+    const response = await _axios.post(`${authServiceUrl}/auth/realms/${tenant}/protocol/openid-connect/token`, request.toString(), config)
     const authToken: {
       "access_token": string;
       "expires_in": number;
