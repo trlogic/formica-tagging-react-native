@@ -1,5 +1,5 @@
 //  ******************** TRACKER  ********************
-import axios, {AxiosInstance} from "axios";
+import axios, {AxiosInstance, AxiosRequestConfig} from "axios";
 import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
@@ -21,10 +21,16 @@ const trackerConfig: TrackerConfig = {
   trackers: []
 };
 
+const authServerUrl: string = "https://formica-keycloak.moneybo.com.tr";
+
 let timerInstance: any = undefined;
 
 let tenant: string;
 let serviceUrl: string;
+let username: string;
+let password: string;
+let client: string;
+let token: string | undefined = undefined;
 
 const globalVariables: KeyValueMap<any> = {
   screenViewDuration: 0
@@ -32,10 +38,14 @@ const globalVariables: KeyValueMap<any> = {
 
 //  ******************** MAIN  ********************
 export namespace FormicaTracker {
-  export const run = async (_serviceUrl: string, _tenant: string): Promise<void> => {
+  export const run = async (_serviceUrl: string, _tenant: string, _username: string, _password: string, _client: string): Promise<void> => {
     try {
       if (_serviceUrl == null || _serviceUrl.trim().length == 0) {
         console.error("Service url must be passed");
+        return;
+      }
+      if (_username == undefined || _username.trim().length == 0 || _password == undefined || _password.length == 0 || _client == undefined || _client.trim().length == 0) {
+        console.error("Service authentication information must be passed");
         return;
       }
       if (_tenant == null || _tenant.trim().length == 0) {
@@ -44,10 +54,15 @@ export namespace FormicaTracker {
       }
       serviceUrl = _serviceUrl;
       tenant = _tenant;
+      username = _username;
+      password = _password;
+      client = _client;
+      await initAuthenticateWorkers();
       await getTrackers();
       initClientWorker();
       initTimer();
       await checkNetworkConnection();
+      setInterval(() => initAuthenticateWorkers(), 1000 * 60 * 3);
       trackerConfig.trackers.forEach(tracker => tracker.triggers.forEach(triggerSchema => initListener(triggerSchema, tracker.variables, tracker.event)));
       return Promise.resolve();
     } catch (e) {
@@ -60,9 +75,38 @@ export namespace FormicaTracker {
   }
 }
 
+const initAuthenticateWorkers = async () => {
+  try {
+    const request = new URLSearchParams({
+      username,
+      password,
+      client_id: client,
+      grant_type: "password",
+    })
+    const config: AxiosRequestConfig = {
+      headers: {'content-type': 'application/x-www-form-urlencoded'},
+    };
+    const response = await _axios.post(`${authServerUrl}/auth/realms/${tenant}/protocol/openid-connect/token`, request.toString(), config)
+    const authToken: {
+      "access_token": string;
+      "expires_in": number;
+      "refresh_expires_in": number;
+      "refresh_token": string;
+    } = response.data;
+    token = authToken.access_token;
+  } catch (e) {
+    token = undefined;
+  }
+}
+
 const getTrackers = async () => {
   try {
-    const config = await _axios.get<TrackerResponse>(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`)
+    const requestConfig: AxiosRequestConfig = {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    }
+    const config = await _axios.get<TrackerResponse>(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`, requestConfig)
     trackerConfig.trackers = config.data.trackers.filter(tracker => tracker.platform == "ReactNative");
     trackerConfig.eventApiUrl = `${config.data.eventApiUrl}/event-listener/event/send-events/${tenant}`;
     trackerConfig.authServerUrl = config.data.authServerUrl;
