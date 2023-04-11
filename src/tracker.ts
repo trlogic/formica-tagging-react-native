@@ -1,5 +1,5 @@
 //  ******************** TRACKER  ********************
-import axios, {AxiosInstance, AxiosRequestConfig} from "axios";
+import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse} from "axios";
 import {AppState, AppStateStatus, DeviceEventEmitter} from "react-native";
 import DeviceInfo from "react-native-device-info";
 
@@ -18,6 +18,7 @@ const eventQueue: Event[] = [];
 const trackerConfig: TrackerConfig = {
   authServerUrl: "",
   eventApiUrl: "",
+  syncEventApiUrl: "",
   trackers: []
 };
 
@@ -73,6 +74,15 @@ export namespace FormicaTracker {
   export const track = (payload: TrackerPayload) => {
     eventQueue.push(payload);
   }
+
+  export const call = async <T>(payload: TrackerPayload): Promise<T> => {
+    try {
+      const response: AxiosResponse<T> = await _axios.post(trackerConfig.syncEventApiUrl, payload);
+      return response.data;
+    } catch (e: any) {
+      throw new Error(e);
+    }
+  }
 }
 
 const initAuthenticateWorkers = async () => {
@@ -109,6 +119,7 @@ const getTrackers = async () => {
     const config = await _axios.get<TrackerResponse>(`${serviceUrl}/formicabox/activity-monitoring-service/v1/tracker/get-config`, requestConfig)
     trackerConfig.trackers = config.data.trackers.filter(tracker => tracker.platform == "ReactNative");
     trackerConfig.eventApiUrl = `${config.data.eventApiUrl}/event-listener/event/send-events/${tenant}`;
+    trackerConfig.syncEventApiUrl = `${config.data.eventApiUrl}/event-listener/event/send-event/${tenant}/sync`;
     trackerConfig.authServerUrl = config.data.authServerUrl;
   } catch (e) {
     console.error("Formica tracker config couldn't get", e);
@@ -213,6 +224,8 @@ interface TrackerConfig {
   trackers: TrackerSchema[];
 
   eventApiUrl: string;
+
+  syncEventApiUrl: string;
 
   authServerUrl: string;
 }
